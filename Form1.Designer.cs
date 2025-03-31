@@ -1,4 +1,4 @@
-﻿namespace WinFormsApp1
+﻿namespace LivinParisApp
 {
     partial class Form1
     {
@@ -10,7 +10,8 @@
         /// <summary>
         ///  Clean up any resources being used.
         /// </summary>
-        /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
+        /// <param name="disposing">true if managed resources should be disposed.</param>
+        /// 
         protected override void Dispose(bool disposing)
         {
             if (disposing && (components != null))

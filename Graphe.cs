@@ -10,6 +10,8 @@ namespace liv_inParis
         public List<Lien> Liens { get; }
         public bool AfficherTemps { get; set; } = false;
 
+        int rayon = 10;
+
         public Graphe(List<Lien> connexions)
         {
             Liens = connexions;
@@ -137,11 +139,12 @@ namespace liv_inParis
         /// </summary>
         /// <param name="g"></param>
         /// <param name="path"></param>
-        public void AfficherChemin(Graphics g, List<Station> path)
+        /// <param name="color"></param>
+        public void AfficherChemin(Graphics g, List<Station> path, Color color)
         {
             if (path == null || path.Count == 0) return;
 
-            using (var pen = new Pen(Color.Red, 3))
+            using (var pen = new Pen(color, 10))
             {
                 for (int i = 0; i < path.Count - 1; i++)
                 {
@@ -179,8 +182,9 @@ namespace liv_inParis
 
             MessageBox.Show(sb.ToString(), "Liste des Liens");
         }
+
         /// <summary>
-        /// Gere la messageBox qui affiche les liaisons entre  les stations
+        /// Gere l'affichage des liaisons sur le graphe
         /// </summary>
         /// <param name="g"></param>
         /// <param name="stations"></param>
@@ -201,14 +205,13 @@ namespace liv_inParis
         /// <param name="g"></param>
         /// <param name="stations"></param>
         /// <param name="stationSelectionnee"></param>
+        
         public void AfficherStations(Graphics g, List<Station> stations, Station stationSelectionnee)
         {
             // Dessiner les stations et leurs noms
             foreach (var station in stations)
             {
                 if (station.Position == null) continue;  // Sécurité si position non définie
-
-                int rayon = 6;
                 Color couleur = station == stationSelectionnee ? Color.Red : Color.White;
 
                 // Dessiner le cercle principal
@@ -228,51 +231,59 @@ namespace liv_inParis
                                  station.Position.Y - rayon,
                                  2 * rayon,
                                  2 * rayon);
+
+                    // Afficher le nom de la station
+                    g.DrawString(station.Nom, new Font("Arial", 10, FontStyle.Regular), Brushes.Black, station.Position.X + rayon + 2, station.Position.Y - rayon);
+
                 }
 
-                // Afficher le nom de la station
-                g.DrawString(station.Nom,
-                            new Font("Arial", 10, FontStyle.Regular),
-                            Brushes.Black,
-                            station.Position.X + rayon + 2,
-                            station.Position.Y - rayon);
             }
         }
-        /// <summary>
-        /// Dessine un arc entre deux stations.
-        /// </summary>
-        /// <param name="g"></param>
-        /// <param name="lien"></param>
+
+
         private void DessinerArc(Graphics g, Lien lien)
         {
             if (lien?.Depart?.Position == null || lien?.Arrivee?.Position == null)
                 return;
 
+            // Calculer les points ajustés pour éviter les chevauchements
+            Point p1 = AjusterPoint(lien.Depart.Position, lien.Arrivee.Position);
+            Point p2 = AjusterPoint(lien.Arrivee.Position, lien.Depart.Position);
+
             var couleur = couleursLignes.TryGetValue(lien.Ligne, out Color c) ? c : Color.Gray;
 
             using (Pen pen = new Pen(couleur, 5))
             {
-                // Dessin de la ligne principale
-                g.DrawLine(pen, lien.Depart.Position, lien.Arrivee.Position);
+                // Dessiner la ligne entre les points ajustés
+                g.DrawLine(pen, p1, p2);
 
-                // Dessin de la flèche si unidirectionnelle
+                // Dessiner la flèche si nécessaire
                 if (lien.Unidir)
                 {
-                    DessinerFleche(g, pen, lien.Depart.Position, lien.Arrivee.Position);
+                    DessinerFleche(g, pen, p1, p2);
                 }
 
-                // Afficher le temps de trajet au milieu de l'arc
+                // Afficher le temps de trajet
                 if (AfficherTemps)
                 {
-                    var milieu = new Point((lien.Depart.Position.X + lien.Arrivee.Position.X) / 2,
-                                           (lien.Depart.Position.Y + lien.Arrivee.Position.Y) / 2);
-                    g.DrawString(lien.Temps.ToString() + " min",
-                                 new Font("Arial", 8, FontStyle.Regular),
-                                 Brushes.Black,
-                                 milieu);
+                    var milieu = new Point((p1.X + p2.X) / 2, (p1.Y + p2.Y) / 2);
+                    g.DrawString($"{lien.Temps} min", new Font("Arial", 8), Brushes.Black, milieu);
                 }
             }
         }
+
+        // Ajoutez cette méthode d'ajustement dans la classe Graphe
+        private Point AjusterPoint(Point source, Point target)
+        {
+            double angle = Math.Atan2(target.Y - source.Y, target.X - source.X);
+            return new Point(
+                (int)(source.X + rayon * Math.Cos(angle)),
+                (int)(source.Y + rayon * Math.Sin(angle))
+            );
+        }
+
+
+
         /// <summary>
         /// Dessine une flèche à l'extrémité d'une ligne pour les arcs unidirectionnels.
         /// </summary>
@@ -300,6 +311,56 @@ namespace liv_inParis
             g.FillPolygon(pen.Brush, points);
         }
 
+
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="source"></param>
+        /// <param name="target"></param>
+        /// <returns></returns>
+        /// <exception cref="InvalidOperationException"></exception>
+        public (List<Station> path, int totalTime) GetShortestPathBellmanFord(Station source, Station target)
+        {
+            var distances = new Dictionary<Station, int>();
+            var previous = new Dictionary<Station, Station>();
+            int nbrchangements = 0;
+
+            // Initialisation
+            foreach (var station in Liens.SelectMany(l => new[] { l.Depart, l.Arrivee }).Distinct())
+            {
+                distances[station] = int.MaxValue;
+                previous[station] = null;
+            }
+            distances[source] = 0;
+
+            // Relâchement des arêtes (V-1 itérations)
+            for (int i = 0; i < distances.Count - 1; i++)
+            {
+                foreach (var lien in Liens)
+                {
+                    if (distances[lien.Depart] != int.MaxValue &&
+                        distances[lien.Depart] + lien.Temps < distances[lien.Arrivee])
+                    {
+                        distances[lien.Arrivee] = distances[lien.Depart] + lien.Temps;
+                        previous[lien.Arrivee] = lien.Depart;
+                    }
+                }
+            }
+
+            // Reconstruction du chemin
+            var path = new List<Station>();
+            var current = target;
+            while (current != null)
+            {
+                path.Insert(0, current);
+                current = previous[current];
+            }
+
+            return (path, distances[target] + (nbrchangements * 5));
+        }
+
+        
         /// <summary>
         /// Dictionnaire des couleurs des lignes de métro.
         /// </summary>

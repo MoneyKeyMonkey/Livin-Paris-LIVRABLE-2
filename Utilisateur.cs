@@ -8,6 +8,8 @@ using System.Text;
 using System.Windows.Forms;
 using WinFormsApp1;
 
+namespace LivinParisApp
+{
 public class Utilisateur
 {
     public int Id { get; set; }
@@ -192,4 +194,5 @@ public class Utilisateur
         List<Utilisateur> utilisateurs = GenererUtilisateursAleatoires(nombre);
         return SauvegarderListeEnBDD(utilisateurs);
     }
+}
 }

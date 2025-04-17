@@ -9,41 +9,49 @@ namespace LivinParisApp
     {
         TextBox txtNom, txtPrenom, txtMail, txtTelephone, txtAdresse, txtPassword;
         ComboBox cmbRole;
+        NumericUpDown nudNombreUtilisateurs;
 
         public FormInscrire()
         {
             // Configuration de la fenêtre
             this.Text = "Inscription";
-            this.Size = new System.Drawing.Size(300, 500);
+            this.Size = new System.Drawing.Size(350, 550);
             this.StartPosition = FormStartPosition.CenterScreen;
 
             // Création des labels et champs de texte
             Label lblNom = new Label { Text = "Nom:", Location = new System.Drawing.Point(20, 20) };
-            txtNom = new TextBox { Location = new System.Drawing.Point(120, 20), Width = 150 };
+            txtNom = new TextBox { Location = new System.Drawing.Point(120, 20), Width = 200 };
 
             Label lblPrenom = new Label { Text = "Prénom:", Location = new System.Drawing.Point(20, 60) };
-            txtPrenom = new TextBox { Location = new System.Drawing.Point(120, 60), Width = 150 };
+            txtPrenom = new TextBox { Location = new System.Drawing.Point(120, 60), Width = 200 };
 
             Label lblMail = new Label { Text = "Email:", Location = new System.Drawing.Point(20, 100) };
-            txtMail = new TextBox { Location = new System.Drawing.Point(120, 100), Width = 150 };
+            txtMail = new TextBox { Location = new System.Drawing.Point(120, 100), Width = 200 };
 
             Label lblTelephone = new Label { Text = "Téléphone:", Location = new System.Drawing.Point(20, 140) };
-            txtTelephone = new TextBox { Location = new System.Drawing.Point(120, 140), Width = 150 };
+            txtTelephone = new TextBox { Location = new System.Drawing.Point(120, 140), Width = 200 };
 
             Label lblAdresse = new Label { Text = "Adresse:", Location = new System.Drawing.Point(20, 180) };
-            txtAdresse = new TextBox { Location = new System.Drawing.Point(120, 180), Width = 150 };
+            txtAdresse = new TextBox { Location = new System.Drawing.Point(120, 180), Width = 200 };
 
             Label lblPassword = new Label { Text = "Mot de passe:", Location = new System.Drawing.Point(20, 220) };
-            txtPassword = new TextBox { Location = new System.Drawing.Point(120, 220), Width = 150, PasswordChar = '*' };
+            txtPassword = new TextBox { Location = new System.Drawing.Point(120, 220), Width = 200, PasswordChar = '*' };
 
             Label lblRole = new Label { Text = "Rôle:", Location = new System.Drawing.Point(20, 260) };
-            cmbRole = new ComboBox { Location = new System.Drawing.Point(120, 260), Width = 150 };
-            cmbRole.Items.AddRange(new string[] { "Cuisinier", "Client", "Entreprise" });
+            cmbRole = new ComboBox { Location = new System.Drawing.Point(120, 260), Width = 200 };
+            cmbRole.Items.AddRange(new string[] { "client", "entreprise", "cuisinier" });
+            cmbRole.SelectedIndex = 0; // Par défaut "client"
 
-            Button btnInscrire = new Button { Text = "S'inscrire", Location = new System.Drawing.Point(100, 310) };
+            Button btnInscrire = new Button { Text = "S'inscrire", Location = new System.Drawing.Point(120, 310), Width = 200 };
             btnInscrire.Click += BtnInscrire_Click;
 
-            Button btnGenerateUsers = new Button { Text = "Générer 10 utilisateurs", Location = new System.Drawing.Point(100, 350) };
+            // Nouvelle section pour la génération d'utilisateurs
+            Label lblSeparator = new Label { Text = "─────── Génération automatique ───────", Location = new System.Drawing.Point(20, 360), Width = 300, TextAlign = ContentAlignment.MiddleCenter };
+
+            Label lblNombreUtilisateurs = new Label { Text = "Nombre:", Location = new System.Drawing.Point(20, 390) };
+            nudNombreUtilisateurs = new NumericUpDown { Location = new System.Drawing.Point(120, 390), Width = 200, Minimum = 1, Maximum = 100, Value = 10 };
+
+            Button btnGenerateUsers = new Button { Text = "Générer les utilisateurs", Location = new System.Drawing.Point(120, 430), Width = 200 };
             btnGenerateUsers.Click += BtnGenerateUsers_Click;
 
             // Ajout des contrôles au formulaire
@@ -62,6 +70,9 @@ namespace LivinParisApp
             this.Controls.Add(lblRole);
             this.Controls.Add(cmbRole);
             this.Controls.Add(btnInscrire);
+            this.Controls.Add(lblSeparator);
+            this.Controls.Add(lblNombreUtilisateurs);
+            this.Controls.Add(nudNombreUtilisateurs);
             this.Controls.Add(btnGenerateUsers);
         }
 
@@ -77,105 +88,47 @@ namespace LivinParisApp
                 return;
             }
 
-            string connectionString = "Server=localhost;Database=food_delivery;User ID=root;Password=root";
-            using (MySqlConnection connection = new MySqlConnection(connectionString))
+            // Créer l'utilisateur à partir des champs du formulaire
+            Utilisateur nouvelUtilisateur = new Utilisateur
             {
-                try
-                {
-                    connection.Open();
+                Nom = txtNom.Text,
+                Prenom = txtPrenom.Text,
+                Email = txtMail.Text,
+                Telephone = txtTelephone.Text,
+                MotDePasse = txtPassword.Text,
+                Type = cmbRole.SelectedItem.ToString(),
+                EstActif = true
+            };
 
-                    string query = "INSERT INTO utilisateur (nom, prenom, email, num_tel, adresse, mdp, role) " +
-                                   "VALUES (@Nom, @Prenom, @Email, @Telephone, @Adresse, SHA2(@MotDePasse, 256), @Role)";
-
-                    using (MySqlCommand cmd = new MySqlCommand(query, connection))
-                    {
-                        cmd.Parameters.AddWithValue("@Nom", txtNom.Text);
-                        cmd.Parameters.AddWithValue("@Prenom", txtPrenom.Text);
-                        cmd.Parameters.AddWithValue("@Email", txtMail.Text);
-                        cmd.Parameters.AddWithValue("@Telephone", txtTelephone.Text);
-                        cmd.Parameters.AddWithValue("@Adresse", txtAdresse.Text);
-                        cmd.Parameters.AddWithValue("@MotDePasse", txtPassword.Text);
-                        cmd.Parameters.AddWithValue("@Role", cmbRole.SelectedItem.ToString().ToLower());
-
-                        cmd.ExecuteNonQuery();
-                    }
-
-                    MessageBox.Show("Inscription réussie et sauvegardée dans la base de données !", "Succès", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }
-                catch (Exception ex)
-                {
-                    if (ex.Message.Contains("'utilisateur.email'")) // Code d'erreur pour une violation de contrainte unique
-                    {
-                        MessageBox.Show("L'email est déjà utilisé. Veuillez en choisir un autre.", "Erreur", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
-                    else
-                    {
-                        MessageBox.Show("Une erreur est survenue : " + ex.Message, "Erreur", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
-                }
+            // Sauvegarder l'utilisateur dans la base de données
+            if (nouvelUtilisateur.SauvegarderEnBDD())
+            {
+                MessageBox.Show("Inscription réussie!", "Succès", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                this.Close();
             }
         }
 
         private void BtnGenerateUsers_Click(object sender, EventArgs e)
         {
-            string[] noms = { "Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez" };
-            string[] prenoms = { "John", "Robert", "Michael", "William", "David", "Richard", "Joseph", "Thomas", "Charles", "Christopher" };
-            string[] roles = { "cuisinier", "client", "entreprise" };
-            string[] addresses = {
-                "1 Rue de Rivoli, 75001 Paris",
-                "2 Avenue des Champs-Élysées, 75008 Paris",
-                "3 Boulevard Saint-Germain, 75005 Paris",
-                "4 Rue de la Paix, 75002 Paris",
-                "5 Avenue Montaigne, 75008 Paris",
-                "6 Rue du Faubourg Saint-Honoré, 75008 Paris",
-                "7 Rue de la Boétie, 75008 Paris",
-                "8 Rue de Vaugirard, 75006 Paris",
-                "9 Rue de Rennes, 75006 Paris",
-                "10 Rue de la Pompe, 75016 Paris"
-            };
+            int nombreUtilisateurs = (int)nudNombreUtilisateurs.Value;
 
-            Random random = new Random();
+            Cursor = Cursors.WaitCursor;
 
-            string connectionString = "Server=localhost;Database=food_delivery;User ID=root;Password=root";
-            using (MySqlConnection connection = new MySqlConnection(connectionString))
+            try
             {
-                try
-                {
-                    connection.Open();
+                // Utiliser la méthode de génération automatique de la classe Utilisateur
+                int compteur = Utilisateur.GenererEtSauvegarderUtilisateurs(nombreUtilisateurs);
 
-                    for (int i = 0; i < 10; i++)
-                    {
-                        string nom = noms[random.Next(noms.Length)];
-                        string prenom = prenoms[random.Next(prenoms.Length)];
-                        string email = $"{prenom.ToLower()}.{nom.ToLower()}@example.com";
-                        string telephone = "0123456789";    
-                        string adresse = addresses[random.Next(addresses.Length)];
-                        string motDePasse = prenom.ToLower();
-                        string role = roles[random.Next(roles.Length)];
-
-                        string query = "INSERT INTO utilisateur (nom, prenom, email, num_tel, adresse, mdp, role) " +
-                                       "VALUES (@Nom, @Prenom, @Email, @Telephone, @Adresse, SHA2(@MotDePasse, 256), @Role)";
-
-                        using (MySqlCommand cmd = new MySqlCommand(query, connection))
-                        {
-                            cmd.Parameters.AddWithValue("@Nom", nom);
-                            cmd.Parameters.AddWithValue("@Prenom", prenom);
-                            cmd.Parameters.AddWithValue("@Email", email);
-                            cmd.Parameters.AddWithValue("@Telephone", telephone);
-                            cmd.Parameters.AddWithValue("@Adresse", adresse);
-                            cmd.Parameters.AddWithValue("@MotDePasse", motDePasse);
-                            cmd.Parameters.AddWithValue("@Role", role);
-
-                            cmd.ExecuteNonQuery();
-                        }
-                    }
-
-                    MessageBox.Show("10 utilisateurs générés et sauvegardés dans la base de données !", "Succès", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show("Une erreur est survenue : " + ex.Message, "Erreur", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
+                MessageBox.Show($"{compteur} utilisateurs sur {nombreUtilisateurs} ont été générés et sauvegardés dans la base de données!",
+                                "Succès", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Une erreur est survenue : {ex.Message}", "Erreur", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                Cursor = Cursors.Default;
             }
         }
     }
